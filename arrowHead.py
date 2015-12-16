@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy
 from PIL import Image
 from PIL import ImageOps
+from intervaltree import IntervalTree
+from intervaltree import Interval
 
 def fn(a):
     if a:
@@ -29,10 +31,10 @@ def display(np):
     print "About to display image"
     # Write image to file
     im = Image.fromarray(numpy.uint8(plt.cm.gist_earth(np)*255))
-    im.save("img.jpg")
+    im.save("A.jpg")
 
     # Display image
-    plt.matshow(np, figure=1, cmap=plt.cm.gray)
+    plt.matshow(np, figure=1, cmap="gist_earth")
     plt.show()
 
 #def readMat(input_file):
@@ -93,6 +95,8 @@ def computeUsgn(A):
     Usgn = numpy.zeros(A.shape)
 
     row,col = A.shape
+    for r in range(row):
+        Usgn[r][r]=A[r][r]
 
     # Compute U[a][b]
     for d in range(1,row):
@@ -107,6 +111,8 @@ def computeLsgn(A):
     Lsgn = numpy.zeros(A.shape)
 
     row,col = A.shape
+    for r in range(row):
+        Lsgn[r][r]=A[r][r]
 
     # compute L[a][b]
     for d in range(1, row):
@@ -140,6 +146,8 @@ def computeU(A):
     U = numpy.zeros(A.shape)
 
     row,col = A.shape
+    for r in range(row):
+        U[r][r]=A[r][r]
 
     # Compute U[a][b]
     for d in range(1,row):
@@ -154,7 +162,8 @@ def computeL(A):
     L = numpy.zeros(A.shape)
 
     row,col = A.shape
-
+    for r in range(row):
+        L[r][r]=A[r][r]
     # compute L[a][b]
     for d in range(1, row):
         for r in range(row):
@@ -182,9 +191,11 @@ def computeSvar(A, U, L):
     (row,col) = A.shape
     for d in range(1,row):
         for r in range(row):
-            if r+d >= col or 2*(r+d)-r >= col:
-                break
+            if r+d >= col :
+                continue
             countU[r][r+d] = countU[r][r+d-1] + A[r:r+d/2+1, r+d].size
+            if 2*(r+d)-r >= col:
+                continue
             countL[r][r+d] = countL[r][r+d-1] + A[r+d, r+d:2*(r+d)-r+1].size
             Sx2[r][r+d] = Sx2[r][r+d-1] + sq[r:r+d/2+1, r+d].sum() + sq[r+d, r+d:2*(r+d)-r+1].sum()
 
@@ -192,7 +203,7 @@ def computeSvar(A, U, L):
         for r in range(row):
             if r+d >= col or 2*(r+d) >= col:
                 break
-            Svar[r][r+d] = (Sx2[r][r+d] -Sx[r][r+d])/(countU[r][r+d]+countL[r][r+d])
+            Svar[r][r+d] = (Sx2[r][r+d])/(countU[r][r+d]+countL[r][r+d]) -(Sx[r][r+d]/(countU[r][r+d]+countL[r][r+d]))**2
 
     print "Finished Computing Svar..."
     return (Svar,countU,countL)
@@ -214,18 +225,50 @@ def getAllMat(A):
     (Svar, countU, countL) = computeSvar(A, U, L)
     Ssign = normalizeS(Ssign)
     Ssum = normalizeS(Ssum)
-    Svar = normalizeS(Svar)
-    Scorner = getCornerScore(Ssign, Ssum, Svar)
-    return (Usgn, Lsgn, countU, countL, Svar, Scorner)
+    Svarn = normalizeS(Svar)
+    Scorner = getCornerScore(Ssign, Ssum, Svarn)
+
+    newFn = numpy.vectorize(fn)
+    NewCountU = newFn(countU)
+    NewCountL = newFn(countL)
+    MeanSgnU = Usgn/NewCountU;
+    MeanSgnL = Lsgn/NewCountL;
+
+
+    return (Usgn, Lsgn, countU, countL, Svar, Svarn, Scorner, MeanSgnU, MeanSgnL)
 
 def main(args):
     np = readMat(args.input_data)
     if args.is_normal is 'n':
         normalize(np)
     A = computeArrowHead(np)
+    intervalTree = IntervalTree()
     #display(A)
-    (Usgn, Lsgn, countU, countL, Svar, Scorner) = getAllMat(A)
+    (Usgn, Lsgn, countU, countL, Svar, Svarn, Scorner, MeanSgnU, MeanSgnL) = getAllMat(A)
+
+    numpy.savetxt('ScornerOri',Scorner)
+    numpy.savetxt('A',A)
+    numpy.savetxt('Svar',Svar)
+    numpy.savetxt('MeanSgnU',MeanSgnU)
+    numpy.savetxt('MeanSgnL',MeanSgnL)
+
+    print "First stage filtering begin :"
+    for x, y in numpy.ndindex(Scorner.shape):
+        if Svar[x][y]<0.2 and MeanSgnU[x][y]<-0.5 and MeanSgnL[x][y]>0.5:
+            Scorner[x][y]=0
+        else:
+            continue 
+                ##intervalTree[x:y]="("+str(x)+","+str(y)+")"
+#    numpy.savetxt("ScornerAfterFirst",Scorner)
+    print "First stage filtering end."
+
+#    print "Second stage filtering end."
+    numpy.savetxt("ScornerAfterSecond",Scorner)
     display(Scorner)
+
+    A[ numpy.where( A > 0 ) ]=0
+    A[ numpy.where( A < 0 ) ]=1
+    display(A)
 
 
 if __name__== "__main__":
@@ -236,3 +279,11 @@ if __name__== "__main__":
     parser.add_argument("--t2")
     args = parser.parse_args()
     main(args)
+
+
+'''    for x, y in numpy.ndindex(Scorner.shape):
+        if MeanSgnU[x][y]<-0.4 and MeanSgnL[x][y]>0.4:
+            continue
+        else:
+            Scorner[x][y]=0
+'''
