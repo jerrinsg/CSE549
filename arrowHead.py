@@ -27,48 +27,16 @@ def normalize(np):
             np[r][c] = np[r][c]/fn(sumRow[r]*sumCol[c])
     print "Finished Normalizing Matrix..."
 
-def display(np):
+def display(np, filename):
     print "About to display image"
     # Write image to file
     im = Image.fromarray(numpy.uint8(plt.cm.gist_earth(np)*255))
-    im.save("A.jpg")
+    im.save(filename)
 
     # Display image
     plt.matshow(np, figure=1, cmap="gist_earth")
     plt.show()
 
-#def readMat(input_file):
-#    fd = open(input_file, 'r')
-#    # Read input file, split by newline, split by whitespace and then
-#    # convert each to float
-#    M = [map(lambda x:float(x), y) for y in [row.split() for row in
-#                                             fd.read()[:-1].split('\n')]]
-#    return (M, len(M), len(M[0]))
-#
-
-#def normalize(M, numRow, numCol):
-#    # Get the sum of each row
-#    sumRow = [fn(sum(x)) for x in M]
-#
-#    # Get the sum of each column
-#    sumCol = [fn(cval) for cval in reduce(lambda x,y: [a+b for a,b in zip(x,y)], M)]
-#
-#    # Divide each entry by sum of its column
-#    for row in range(numRow):
-#        for col in range(numCol):
-#            M[row][col] = M[row][col]/(sumRow[row]*sumCol[col])
-#
-#    # Divide each entry by sum of its column
-#    #M = map(lambda x: [a/fn(b) for a,b in zip(x,sumCol)], M)
-#    # Divide each entry by sum of its row
-#    #M = [map(lambda x: x/fn(sumRow[row]), M[row]) for row in range(len(sumRow))]
-#    return M
-#
-
-#def display(M, numRow, numCol):
-#    plt.matshow(M, figure=1, cmap=plt.cm.gray)
-#    plt.show()
-#
 def computeArrowHead(np):
     print "Computing ArrowHead..."
     A = numpy.zeros(np.shape)
@@ -239,36 +207,46 @@ def getAllMat(A):
 
 def main(args):
     np = readMat(args.input_data)
+
+    apply_threshold1 = args.apply_threshold1
+    if apply_threshold1 is 'y':
+        t1=float(args.t1)
+        t2=float(args.t2)
+        t3=float(args.t3)
+
+    apply_threshold2 = args.apply_threshold2
+    if apply_threshold2 is 'y':
+        t4=float(args.t4)
+        t5=float(args.t5)
+
     if args.is_normal is 'n':
         normalize(np)
+
     A = computeArrowHead(np)
     intervalTree = IntervalTree()
-    #display(A)
+    display(A,"A.jpg")
     (Usgn, Lsgn, countU, countL, Svar, Svarn, Scorner, MeanSgnU, MeanSgnL) = getAllMat(A)
 
-    numpy.savetxt('ScornerOri',Scorner)
-    numpy.savetxt('A',A)
-    numpy.savetxt('Svar',Svar)
-    numpy.savetxt('MeanSgnU',MeanSgnU)
-    numpy.savetxt('MeanSgnL',MeanSgnL)
+    if apply_threshold1 is 'y':
 
-    print "First stage filtering begin :"
-    for x, y in numpy.ndindex(Scorner.shape):
-        if Svar[x][y]<0.2 and MeanSgnU[x][y]<-0.5 and MeanSgnL[x][y]>0.5:
-            Scorner[x][y]=0
-        else:
-            continue 
-                ##intervalTree[x:y]="("+str(x)+","+str(y)+")"
-#    numpy.savetxt("ScornerAfterFirst",Scorner)
-    print "First stage filtering end."
+        print "First stage filtering begin :"
+        for x, y in numpy.ndindex(Scorner.shape):
+            if Svar[x][y]<t1 and MeanSgnU[x][y]<-t2 and MeanSgnL[x][y]>t3:
+                Scorner[x][y]=0
+            else:
+                continue 
+            print "First stage filtering end."
 
-#    print "Second stage filtering end."
-    numpy.savetxt("ScornerAfterSecond",Scorner)
-    display(Scorner)
+    if apply_threshold2 is 'y':
+        print "Second stage filtering begin :"
+        for x, y in numpy.ndindex(Scorner.shape):
+            if MeanSgnU[x][y]<-t4 and MeanSgnL[x][y]>t5:
+                continue
+            else:
+                Scorner[x][y]=0
+            print "Second stage filtering end."
 
-    A[ numpy.where( A > 0 ) ]=0
-    A[ numpy.where( A < 0 ) ]=1
-    display(A)
+    display(Scorner,"Scorner.jpg")
 
 
 if __name__== "__main__":
@@ -277,13 +255,10 @@ if __name__== "__main__":
     parser.add_argument("--is_normal")
     parser.add_argument("--t1")
     parser.add_argument("--t2")
+    parser.add_argument("--t3")
+    parser.add_argument("--t4")
+    parser.add_argument("--t5")
+    parser.add_argument("--apply_threshold1")
+    parser.add_argument("--apply_threshold2")
     args = parser.parse_args()
     main(args)
-
-
-'''    for x, y in numpy.ndindex(Scorner.shape):
-        if MeanSgnU[x][y]<-0.4 and MeanSgnL[x][y]>0.4:
-            continue
-        else:
-            Scorner[x][y]=0
-'''
