@@ -33,10 +33,6 @@ def display(np, filename):
     im = Image.fromarray(numpy.uint8(plt.cm.gist_earth(np)*255))
     im.save(filename)
 
-    # Display image
-    plt.matshow(np, figure=1, cmap="gist_earth")
-    plt.show()
-
 def computeArrowHead(np):
     print "Computing ArrowHead..."
     A = numpy.zeros(np.shape)
@@ -228,14 +224,14 @@ def main(args):
     (Usgn, Lsgn, countU, countL, Svar, Svarn, Scorner, MeanSgnU, MeanSgnL) = getAllMat(A)
 
     if apply_threshold1 is 'y':
-
         print "First stage filtering begin :"
         for x, y in numpy.ndindex(Scorner.shape):
             if Svar[x][y]<t1 and MeanSgnU[x][y]<-t2 and MeanSgnL[x][y]>t3:
-                Scorner[x][y]=0
-            else:
                 continue 
-            print "First stage filtering end."
+            else:
+                Scorner[x][y]=0
+
+        print "First stage filtering end."
 
     if apply_threshold2 is 'y':
         print "Second stage filtering begin :"
@@ -244,9 +240,10 @@ def main(args):
                 continue
             else:
                 Scorner[x][y]=0
-            print "Second stage filtering end."
+        print "Second stage filtering end."
 
     display(Scorner,"Scorner.jpg")
+    numpy.savetxt('ScornerData',Scorner)
 
 
 if __name__== "__main__":
