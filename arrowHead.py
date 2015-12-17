@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 import numpy
 from PIL import Image
 from PIL import ImageOps
-from intervaltree import IntervalTree
-from intervaltree import Interval
 
 def fn(a):
     if a:
@@ -219,7 +217,7 @@ def main(args):
         normalize(np)
 
     A = computeArrowHead(np)
-    intervalTree = IntervalTree()
+
     display(A,"A.jpg")
     (Usgn, Lsgn, countU, countL, Svar, Svarn, Scorner, MeanSgnU, MeanSgnL) = getAllMat(A)
 
